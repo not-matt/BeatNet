@@ -79,7 +79,7 @@ class BeatNet:
         self.model.eval()
                                              
     def process(self, audio_path=None):               
-        elif self.mode == "realtime":
+        if self.mode == "realtime":
             self.counter = 0
             self.completed = 0
             if self.inference_model != "PF":

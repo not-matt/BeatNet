@@ -11,7 +11,6 @@ from BeatNet.log_spect import LOG_SPECT
 import librosa
 import sys
 from BeatNet.model import BDA
-import pyaudio
 import matplotlib.pyplot as plt
 import time
 import threading
@@ -26,8 +25,7 @@ class BeatNet:
         ----------
         Inputs: 
             model: An scalar in the range [1,3] to select which pre-trained CRNN models to utilize. 
-            mode: An string to determine the working mode. i.e. 'stream', 'realtime', 'online' and ''offline.
-                'stream' mode: Uses the system microphone to capture sound and does the process in real-time. Due to training the model on standard mastered songs, it is highly recommended to make sure the microphone sound is as loud as possible. Less reverbrations leads to the better results.  
+            mode: An string to determine the working mode. i.e. 'realtime', 'online' and ''offline.
                 'Realtime' mode: Reads an audio file chunk by chunk, and processes each chunck at the time.
                 'Online' mode: Reads the whole audio and feeds it into the BeatNet CRNN at the same time and then infers the parameters on interest using particle filtering.
                 'offline' mode: Reads the whole audio and feeds it into the BeatNet CRNN at the same time and then inferes the parameters on interest using madmom dynamic Bayesian network. This method is quicker that madmom beat/downbeat tracking.
@@ -79,30 +77,8 @@ class BeatNet:
         else:
             raise RuntimeError(f'Failed to open the trained model: {model}')
         self.model.eval()
-        if self.mode == 'stream':
-            self.stream_window = np.zeros(self.log_spec_win_length + 2 * self.log_spec_hop_length, dtype=np.float32)                                          
-            self.stream = pyaudio.PyAudio().open(format=pyaudio.paFloat32,
-                                             channels=1,
-                                             rate=self.sample_rate,
-                                             input=True,
-                                             frames_per_buffer=self.log_spec_hop_length,)
                                              
-    def process(self, audio_path=None):   
-        if self.mode == "stream":
-            if self.inference_model != "PF":
-                    raise RuntimeError('The infernece model should be set to "PF" for the streaming mode!')
-            self.counter = 0
-            while self.stream.is_active():
-                self.activation_extractor_stream()  # Using BeatNet causal Neural network streaming mode to extract activations
-                if self.thread:
-                    x = threading.Thread(target=self.estimator.process, args=(self.pred), daemon=True)   # Processing the inference in another thread 
-                    x.start()
-                    x.join()    
-                else:
-                    output = self.estimator.process(self.pred)
-                self.counter += 1
-
-                
+    def process(self, audio_path=None):               
         elif self.mode == "realtime":
             self.counter = 0
             self.completed = 0
